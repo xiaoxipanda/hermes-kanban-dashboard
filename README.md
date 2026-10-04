@@ -5,6 +5,10 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Platform: macOS · Linux · Docker](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Docker-lightgrey.svg)](docs/DEPLOY.md)
 
+<p align="center">
+  <img src="static/brand-mark.svg" alt="Hermes Kanban logo" width="80">
+</p>
+
 A lightweight, generic, real-time dashboard on top of the **Hermes** kanban CLI.
 No direct SQLite access, no hard-coded boards or assignees — every read and
 write goes through `hermes kanban … --json` as a subprocess. Drop it on any

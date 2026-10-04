@@ -35,7 +35,7 @@ button svg, [data-icon] svg, #theme-icon svg { display: block; flex-shrink: 0; }
 .topbar { display: flex; justify-content: space-between; flex: 0 0 auto; gap: 16px; min-height: 64px; padding: 12px 24px; background: var(--bg); backdrop-filter: none; border-bottom: 1px solid var(--border); }
 .brand { gap: 10px; min-width: 0; }
 .brand strong { font-size: 14px; letter-spacing: -.02em; background: none; color: var(--text); white-space: nowrap; }
-.brand-mark { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid var(--border-strong); border-radius: 8px; color: var(--accent); font-weight: 700; }
+.brand-mark { display: block; width: 30px; height: 30px; flex: 0 0 30px; }
 #nav-toggle { display: none; }
 .status { flex-wrap: nowrap; gap: 10px; }
 .connection { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 12px; white-space: nowrap; margin-right: 8px; }

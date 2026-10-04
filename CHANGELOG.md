@@ -7,6 +7,8 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- A dedicated Hermes Kanban brand mark used in the app header, browser favicon,
+  and README.
 - Create native Hermes boards from the workspace sidebar, with immutable-slug,
   preset icons and absolute-workdir validation, then open the new board
   immediately. Selected icons appear in navigation and overview.
