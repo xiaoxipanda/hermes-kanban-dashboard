@@ -277,10 +277,14 @@ def run():
 
             # Create a physical board, validate its fields, and open it.
             page.locator("#new-board-btn").click()
+            expect(page.locator("#board-color")).to_have_count(0)
+            expect(page.locator(".custom-icon")).to_have_count(0)
             page.locator("#board-name").fill("Content Growth")
             expect(page.locator("#board-slug")).to_have_value("content-growth")
             page.locator("#board-description").fill("内容与获客实验")
-            page.locator("#board-icon").fill("C")
+            page.locator('[data-board-icon="🚀"]').click()
+            expect(page.locator("#board-icon")).to_have_value("🚀")
+            expect(page.locator('[data-board-icon="🚀"]')).to_have_attribute("aria-pressed", "true")
             page.locator("#board-dialog details.advanced summary").click()
             page.locator("#board-workdir").fill("relative/path")
             page.locator("#board-submit").click()
@@ -296,7 +300,9 @@ def run():
             expect(page.locator("#workspace-title")).to_have_text("Content Growth")
             expect(page.locator(".empty-state")).to_be_visible()
             expect(page.locator('[data-open-board="content-growth"]')).to_have_count(1)
-            assert len([c for c in WRITES if c[:2] == ["boards", "create"]]) == 1
+            expect(page.locator('[data-open-board="content-growth"] .board-avatar')).to_have_text("🚀")
+            board_writes = [c for c in WRITES if c[:2] == ["boards", "create"]]
+            assert len(board_writes) == 1 and "--color" not in board_writes[0]
             page.locator("#new-swarm-btn").click()
             expect(page.locator("#swarm-board")).to_have_value("content-growth")
             page.locator('#swarm-dialog button[value="close"]').click()

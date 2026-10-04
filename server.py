@@ -103,7 +103,13 @@ def _ensure_board(board: str) -> None:
 
 @app.get("/")
 def index() -> FileResponse:
-    return FileResponse(APP_DIR / "templates" / "index.html")
+    return FileResponse(
+        APP_DIR / "templates" / "index.html",
+        headers={
+            "Cache-Control": "no-store, max-age=0",
+            "Pragma": "no-cache",
+        },
+    )
 
 
 @app.get("/healthz")

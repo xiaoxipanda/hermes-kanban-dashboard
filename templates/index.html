@@ -5,7 +5,7 @@
   <title>Hermes Kanban · Live Dashboard</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <link rel="stylesheet" href="/static/style.css?v=0.5.0-2" />
-  <link rel="stylesheet" href="/static/workspace.css?v=0.5.0-4" />
+  <link rel="stylesheet" href="/static/workspace.css?v=0.5.0-6" />
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
 </head>
 <body>
@@ -89,10 +89,11 @@
           <small class="field-help" data-i18n="board.slug.help">创建后不可修改，仅使用小写英文、数字、短横线或下划线。</small>
         </label>
         <label><span data-i18n="board.description">看板说明</span><textarea id="board-description" rows="3" maxlength="1000" data-i18n-ph="board.description.ph" placeholder="这个看板负责哪些项目或业务"></textarea></label>
-        <div class="row board-identity-row">
-          <label><span data-i18n="board.icon">图标</span><input id="board-icon" maxlength="16" data-i18n-ph="board.icon.ph" placeholder="C" /></label>
-          <label><span data-i18n="board.color">标识色</span><input id="board-color" type="color" value="#3663d0" /></label>
-        </div>
+        <fieldset class="board-icon-field">
+          <legend data-i18n="board.icon">图标</legend>
+          <div id="board-icon-presets" class="icon-swatches" role="group"></div>
+          <input id="board-icon" type="hidden" value="📋" />
+        </fieldset>
         <details class="advanced">
           <summary data-i18n="create.sec.advanced">高级参数</summary>
           <label><span data-i18n="board.workdir">默认工作目录</span><input id="board-workdir" maxlength="1024" spellcheck="false" data-i18n-ph="board.workdir.ph" placeholder="/Volumes/MacDisk/content-growth" /></label>
@@ -304,9 +305,9 @@
   <datalist id="assignee-list"></datalist>
 
   <div id="toast" role="status" class="toast" hidden></div>
-  <script src="/static/i18n.js?v=0.5.0-4" defer></script>
-  <script src="/static/workspace.js?v=0.5.0-4" defer></script>
-  <script src="/static/boards.js?v=0.5.0-4" defer></script>
+  <script src="/static/i18n.js?v=0.5.0-6" defer></script>
+  <script src="/static/workspace.js?v=0.5.0-6" defer></script>
+  <script src="/static/boards.js?v=0.5.0-6" defer></script>
   <script src="/static/swarm.js?v=0.5.0-4" defer></script>
   <script src="/static/app.js?v=0.5.0-4" defer></script>
 </body>

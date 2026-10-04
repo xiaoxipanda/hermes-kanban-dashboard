@@ -8,7 +8,8 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 - Create native Hermes boards from the workspace sidebar, with immutable-slug,
-  color and absolute-workdir validation, then open the new board immediately.
+  preset icons and absolute-workdir validation, then open the new board
+  immediately. Selected icons appear in navigation and overview.
 - Collaboration form with per-worker assignments, deliverables, acceptance
   criteria, independent review guidance and a live dependency preview.
 - Reopenable collaboration progress from the board and task drawer, including

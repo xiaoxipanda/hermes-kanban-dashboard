@@ -76,7 +76,11 @@ function boardCounts(b) {
 function boardMark(b) {
   let hash = 0;
   for (const ch of b.slug) hash = ((hash * 31) + ch.charCodeAt(0)) >>> 0;
-  return `<span class="board-avatar avatar-${hash % 4}" aria-hidden="true">${esc(Array.from((b.name || b.slug).trim())[0]?.toUpperCase() || "?")}</span>`;
+  const configuredIcon = String(b.icon || "").trim();
+  const mark = configuredIcon || Array.from((b.name || b.slug).trim())[0]?.toUpperCase() || "?";
+  const color = /^#[0-9a-f]{6}$/i.test(b.color || "") ? b.color : "";
+  const style = color ? ` style="--board-color:${color}"` : "";
+  return `<span class="board-avatar avatar-${hash % 4} ${configuredIcon ? "has-icon" : ""}"${style} aria-hidden="true">${esc(mark)}</span>`;
 }
 function visibleNavigationBoards() {
   const query = $("#board-search").value.trim().toLowerCase();
@@ -383,6 +387,7 @@ function toggleActivity(open) {
 }
 function workspaceLanguageChanged() {
   renderWorkspace();
+  if (typeof renderBoardIconPresets === "function") renderBoardIconPresets();
   updateConnection(VIEW.streamState);
   $("#pause-events").textContent = STATE.pauseEvents ? t("workspace.resume") : t("events.pause");
   $("#search").setAttribute("aria-label", t("search.ph"));
