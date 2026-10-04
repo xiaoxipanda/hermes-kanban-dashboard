@@ -4,80 +4,109 @@
   <meta charset="utf-8" />
   <title>Hermes Kanban · Live Dashboard</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/style.css?v=0.5.0-2" />
+  <link rel="stylesheet" href="/static/workspace.css?v=0.5.0-4" />
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
 </head>
 <body>
-  <div class="bg-aurora"></div>
-
   <header class="topbar">
     <div class="brand">
-      <span class="logo-dot"></span>
+      <button id="nav-toggle" class="icon-button" aria-label="打开看板导航" aria-controls="board-nav" aria-expanded="false"><span data-icon="panel"></span></button>
+      <span class="brand-mark" aria-hidden="true">H</span>
       <strong>Hermes Kanban</strong>
-      <span class="muted brand-sub" data-i18n="brand.sub">· 实时看板</span>
     </div>
-
-    <div class="toolbar">
-      <div class="search-wrap" data-tip="search.tip">
-        <span class="search-icon">🔍</span>
-        <input id="search" type="search" data-i18n-ph="search.ph" placeholder="搜索卡片（id / 标题 / 正文 / assignee）  —  按 /" />
-      </div>
-      <label class="filter-field" data-tip="filter.status.tip">
-        <span class="k" data-i18n="filter.status">状态</span>
-        <select id="filter-status"></select>
-      </label>
-      <label class="filter-field" data-tip="filter.assignee.tip">
-        <span class="k" data-i18n="filter.assignee">Assignee</span>
-        <select id="filter-assignee"></select>
-      </label>
-      <label class="inline switch" data-tip="filter.archived.tip">
-        <input id="toggle-archived" type="checkbox" />
-        <span data-i18n="filter.archived">含归档</span>
-      </label>
-    </div>
-
     <div class="status">
-      <span id="sse-indicator" class="dot off" data-tip="sse.tip"></span>
-      <span id="sse-text" class="muted" data-tip="sse.tip">connecting…</span>
-      <span id="last-tick" class="muted" data-tip="tick.tip">—</span>
-
+      <span class="connection" data-tip="sse.tip"><span id="sse-indicator" class="dot off"></span><span id="sse-text">connecting…</span></span>
+      <button id="refresh-btn" class="icon-button" data-tip="btn.refresh.tip" aria-label="refresh"><span data-icon="refresh"></span></button>
+      <button id="activity-toggle" aria-controls="activity-panel" aria-expanded="false"><span data-icon="activity"></span><span data-i18n="workspace.activity">活动</span></button>
       <button id="new-task-btn" class="primary" data-tip="btn.new.tip">
-        <span class="icon">＋</span><span data-i18n="btn.new">新建任务</span>
+        <span data-icon="plus"></span><span data-i18n="btn.new">新建任务</span>
       </button>
-      <button id="new-swarm-btn" data-tip="btn.swarm.tip">
-        <span class="icon">⚡</span><span data-i18n="btn.swarm">Swarm</span>
-      </button>
-      <button id="refresh-btn" data-tip="btn.refresh.tip" aria-label="refresh"><span class="icon">↻</span></button>
-
-      <div class="divider"></div>
-
-      <button id="lang-btn" class="ghost chip" data-tip="btn.lang.tip">
-        <span class="icon">🌐</span><span id="lang-label">中</span>
-      </button>
-      <button id="theme-btn" class="ghost chip" data-tip="btn.theme.tip">
-        <span class="icon" id="theme-icon">🌙</span>
-      </button>
-      <button id="help-btn" class="ghost chip" data-tip="btn.help.tip" aria-label="help"><span class="icon">?</span></button>
     </div>
   </header>
 
-  <main>
-    <section id="boards-wrap" class="boards"></section>
-    <aside class="eventlog">
+  <div class="workspace">
+    <button id="nav-backdrop" class="nav-backdrop" aria-label="关闭导航" hidden></button>
+    <aside id="board-nav" class="board-nav">
+      <div class="nav-heading"><span data-i18n="workspace.label">工作空间</span><span id="board-number" class="muted"></span></div>
+      <button id="overview-btn" class="nav-overview"><span data-icon="grid"></span><span data-i18n="workspace.overview">全部看板</span></button>
+      <div class="nav-search"><span data-icon="search"></span><input id="board-search" type="search" data-i18n-ph="workspace.find" aria-label="搜索看板" placeholder="搜索看板…" /></div>
+      <label class="sr-only" for="board-scope" data-i18n="workspace.scope">看板范围</label>
+      <select id="board-scope"><option value="active" data-i18n="workspace.active">所有使用中的看板</option><option value="favorites" data-i18n="workspace.favorites">收藏的看板</option><option value="archived" data-i18n="workspace.archived">已归档看板</option></select>
+      <nav id="board-list" aria-label="看板列表"></nav>
+      <footer class="nav-footer">
+        <button id="new-board-btn" class="ghost" data-tip="btn.board.tip"><span data-icon="folder-plus"></span><span data-i18n="workspace.newBoard">新建看板</span></button>
+        <button id="new-swarm-btn" class="ghost" data-tip="btn.swarm.tip"><span data-icon="workflow"></span><span data-i18n="workspace.swarm">新建工作流</span></button>
+        <div class="preferences">
+          <button id="lang-btn" class="ghost chip" data-tip="btn.lang.tip"><span data-icon="globe"></span><span id="lang-label">中</span></button>
+          <button id="theme-btn" class="ghost chip" data-tip="btn.theme.tip" aria-label="切换主题"><span id="theme-icon"></span></button>
+          <button id="help-btn" class="ghost chip" data-tip="btn.help.tip" aria-label="help"><span data-icon="help"></span></button>
+        </div>
+      </footer>
+    </aside>
+    <main id="workspace-main">
+      <div class="workspace-heading">
+        <div><div class="eyebrow" data-i18n="workspace.eyebrow">任务中心</div><h1 id="workspace-title"></h1><p id="workspace-description" class="muted"></p></div>
+      </div>
+      <div id="workspace-notice" class="workspace-notice" role="status" hidden></div>
+      <div id="task-toolbar" class="toolbar">
+        <div class="search-wrap" data-tip="search.tip"><span class="search-icon" data-icon="search"></span><input id="search" type="search" data-i18n-ph="search.ph" aria-label="搜索任务" /><kbd aria-hidden="true">/</kbd></div>
+        <label class="filter-field" data-tip="filter.status.tip"><span class="k" data-i18n="filter.status">状态</span><select id="filter-status"></select></label>
+        <label class="filter-field" data-tip="filter.assignee.tip"><span class="k" data-i18n="filter.assignee">负责人</span><select id="filter-assignee"></select></label>
+        <label class="ios-switch" data-tip="filter.archived.tip"><input id="toggle-archived" type="checkbox" role="switch" /><span class="ios-switch-track" aria-hidden="true"><span class="ios-switch-thumb"></span></span><span data-i18n="filter.archived">含归档</span></label>
+      </div>
+      <div id="active-filters" class="active-filters" hidden></div>
+      <section id="overview" class="overview" hidden></section>
+      <section id="boards-wrap" class="boards" aria-label="任务看板"></section>
+      <footer class="workspace-footer"><span id="view-hint" data-i18n="workspace.hint">选择任务查看详情</span><span id="last-tick" data-tip="tick.tip">—</span></footer>
+    </main>
+    <aside id="activity-panel" class="eventlog" hidden>
       <header>
         <strong data-i18n="events.title" data-tip="events.tip">Gateway 事件流</strong>
         <div>
           <button id="pause-events" data-tip="events.pause.tip" data-i18n="events.pause">暂停</button>
-          <button id="clear-events" data-tip="events.clear.tip" data-i18n="events.clear">清空</button>
+          <button id="clear-events" class="icon-button" data-tip="events.clear.tip" aria-label="清空"><span data-icon="trash"></span></button>
+          <button id="activity-close" class="icon-button" aria-label="关闭活动"><span data-icon="close"></span></button>
         </div>
       </header>
+      <p id="event-empty" class="event-empty" data-i18n="workspace.waitEvents">等待新的活动。任务的执行输出可在详情中查看。</p>
       <ol id="event-list"></ol>
       <div class="eventlog-tip muted" data-i18n="events.hint">提示：这是 Hermes Gateway 的实时日志。要看某张卡的 worker 输出，请打开抽屉的"任务日志" Tab。</div>
     </aside>
-  </main>
+  </div>
+
+  <dialog id="board-dialog" aria-labelledby="board-dialog-title">
+    <form method="dialog" class="modal">
+      <header>
+        <strong id="board-dialog-title"><span data-icon="folder-plus"></span> <span data-i18n="board.title">新建看板</span></strong>
+        <button value="close" aria-label="close">✕</button>
+      </header>
+      <div class="modal-body">
+        <label><span data-i18n="board.name">显示名称 *</span><input id="board-name" required maxlength="120" data-i18n-ph="board.name.ph" placeholder="例如：内容增长项目" /></label>
+        <label>
+          <span data-i18n="board.slug">看板标识 *</span>
+          <input id="board-slug" required maxlength="64" pattern="[a-z0-9][a-z0-9_-]{0,63}" spellcheck="false" autocomplete="off" data-i18n-ph="board.slug.ph" placeholder="content-growth" />
+          <small class="field-help" data-i18n="board.slug.help">创建后不可修改，仅使用小写英文、数字、短横线或下划线。</small>
+        </label>
+        <label><span data-i18n="board.description">看板说明</span><textarea id="board-description" rows="3" maxlength="1000" data-i18n-ph="board.description.ph" placeholder="这个看板负责哪些项目或业务"></textarea></label>
+        <div class="row board-identity-row">
+          <label><span data-i18n="board.icon">图标</span><input id="board-icon" maxlength="16" data-i18n-ph="board.icon.ph" placeholder="C" /></label>
+          <label><span data-i18n="board.color">标识色</span><input id="board-color" type="color" value="#3663d0" /></label>
+        </div>
+        <details class="advanced">
+          <summary data-i18n="create.sec.advanced">高级参数</summary>
+          <label><span data-i18n="board.workdir">默认工作目录</span><input id="board-workdir" maxlength="1024" spellcheck="false" data-i18n-ph="board.workdir.ph" placeholder="/Volumes/MacDisk/content-growth" /></label>
+        </details>
+      </div>
+      <footer>
+        <span id="board-result" class="result muted" role="status"></span>
+        <button type="submit" id="board-submit" class="primary" data-i18n="board.submit">创建并打开</button>
+      </footer>
+    </form>
+  </dialog>
 
   <!-- 任务抽屉 -->
-  <dialog id="task-drawer">
+  <dialog id="task-drawer" aria-labelledby="drawer-title">
     <form method="dialog" class="drawer">
       <header>
         <strong id="drawer-title">—</strong>
@@ -87,6 +116,9 @@
         </div>
       </header>
       <div id="drawer-meta" class="meta"></div>
+      <details class="drawer-details"><summary data-i18n="workspace.details">更多任务信息</summary><div id="drawer-extra" class="meta"></div></details>
+      <button id="drawer-update" type="button" class="drawer-update" hidden data-i18n="workspace.taskUpdated">任务有更新，点击加载</button>
+      <button id="drawer-swarm" type="button" hidden data-i18n="swarm.progress">查看协作进度</button>
       <nav class="tabs">
         <button type="button" class="tab active" data-tab="overview" data-tip="tab.overview.tip"><span>📄</span><span data-i18n="tab.overview">概览</span></button>
         <button type="button" class="tab" data-tab="comments" data-tip="tab.comments.tip"><span>💬</span><span data-i18n="tab.comments">评论</span></button>
@@ -98,6 +130,8 @@
         <section data-pane="overview" class="pane active">
           <h3 data-i18n="pane.overview.h">任务说明</h3>
           <div id="drawer-body-md" class="md"></div>
+          <h3 data-i18n="swarm.output">执行结果 / 交接摘要</h3>
+          <div id="drawer-output" class="md"></div>
         </section>
         <section data-pane="comments" class="pane">
           <h3 data-i18n="pane.comments.h">评论（最近 30 条）</h3>
@@ -214,19 +248,26 @@
       <div class="modal-body">
         <p class="pane-hint muted" data-i18n="swarm.hint">Swarm 一次创建 N 个并行 worker + 1 verifier + 1 synthesizer，依赖自动串好。等同 <code>hermes kanban swarm</code>。</p>
         <label><span data-i18n="swarm.board">目标看板</span><select id="swarm-board"></select></label>
-        <label><span data-i18n="swarm.title.l">标题 *</span><input id="swarm-title" required data-i18n-ph="swarm.title.ph" placeholder="工作流的总题目" /></label>
-        <label><span data-i18n="swarm.body">任务说明（Markdown）</span><textarea id="swarm-body" rows="6" data-i18n-ph="swarm.body.ph" placeholder="每个 worker 都会收到这段说明"></textarea></label>
+        <label><span data-i18n="swarm.title.l">目标 *</span><input id="swarm-title" required maxlength="400" data-i18n-ph="swarm.title.ph" /></label>
+        <label><span data-i18n="swarm.body">背景与约束</span><textarea id="swarm-body" rows="3" maxlength="8000" data-i18n-ph="swarm.body.ph"></textarea></label>
+        <label><span data-i18n="swarm.deliverable">最终交付物 *</span><textarea id="swarm-deliverable" required rows="2" maxlength="4000" data-i18n-ph="swarm.deliverable.ph"></textarea></label>
+        <label><span data-i18n="swarm.acceptance">验收标准 *</span><textarea id="swarm-acceptance" required rows="2" maxlength="4000" data-i18n-ph="swarm.acceptance.ph"></textarea></label>
+        <h3 data-i18n="swarm.workers">执行分工（可并行的任务）</h3>
+        <p class="muted pane-hint" data-i18n="swarm.parallelHint"></p>
+        <div id="swarm-worker-rows"></div>
+        <button type="button" id="swarm-add-worker" data-i18n="swarm.addWorker">添加分工</button>
         <div class="row">
-          <label data-tip="swarm.workers.tip"><span data-i18n="swarm.workers">并行 workers</span><input id="swarm-workers" type="number" value="3" min="1" max="16" /></label>
-          <label data-tip="swarm.worker.tip"><span data-i18n="swarm.worker">Worker profile</span><input id="swarm-worker" list="assignee-list" placeholder="research" /></label>
-          <label data-tip="swarm.verifier.tip"><span data-i18n="swarm.verifier">Verifier profile</span><input id="swarm-verifier" list="assignee-list" placeholder="reviewer" /></label>
-          <label data-tip="swarm.synth.tip"><span data-i18n="swarm.synth">Synthesizer profile</span><input id="swarm-synth" list="assignee-list" placeholder="content" /></label>
+          <label><span data-i18n="swarm.verifier">审核人 *</span><select id="swarm-verifier" required></select></label>
+          <label><span data-i18n="swarm.synth">汇总人 *</span><select id="swarm-synth" required></select></label>
         </div>
+        <p id="swarm-role-warning" class="muted pane-hint"></p>
+        <h3 data-i18n="swarm.preview">流程预览</h3>
+        <div id="swarm-preview" class="swarm-flow"></div>
         <details class="advanced">
           <summary data-i18n="create.sec.advanced">高级参数</summary>
           <div class="row">
             <label><span>Tenant</span><input id="swarm-tenant" /></label>
-            <label><span>Project</span><input id="swarm-project" /></label>
+            <label><span data-i18n="workspace.priority">优先级</span><input id="swarm-priority" type="number" value="0" min="0" max="100" /></label>
           </div>
         </details>
       </div>
@@ -235,6 +276,17 @@
         <button type="button" id="swarm-submit" class="primary" data-i18n="swarm.submit">创建 Swarm</button>
       </footer>
     </form>
+  </dialog>
+
+  <dialog id="swarm-progress-dialog" aria-labelledby="swarm-progress-title">
+    <div class="modal">
+      <header><strong id="swarm-progress-title" data-i18n="swarm.progress">协作进度</strong><button type="button" value="close" aria-label="close">✕</button></header>
+      <div class="modal-body">
+        <p class="pane-hint muted" data-i18n="swarm.progressHint"></p>
+        <div id="swarm-progress-content" aria-live="polite"></div>
+      </div>
+      <footer><span id="swarm-progress-status" class="muted" role="status"></span><button type="button" id="swarm-progress-refresh" data-i18n="btn.refresh">刷新</button></footer>
+    </div>
   </dialog>
 
   <!-- 帮助弹窗 -->
@@ -251,7 +303,11 @@
 
   <datalist id="assignee-list"></datalist>
 
-  <script src="/static/i18n.js" defer></script>
-  <script src="/static/app.js" defer></script>
+  <div id="toast" role="status" class="toast" hidden></div>
+  <script src="/static/i18n.js?v=0.5.0-4" defer></script>
+  <script src="/static/workspace.js?v=0.5.0-4" defer></script>
+  <script src="/static/boards.js?v=0.5.0-4" defer></script>
+  <script src="/static/swarm.js?v=0.5.0-4" defer></script>
+  <script src="/static/app.js?v=0.5.0-4" defer></script>
 </body>
 </html>

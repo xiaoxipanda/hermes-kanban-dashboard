@@ -7,7 +7,50 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
-- (track upcoming changes here)
+- Create native Hermes boards from the workspace sidebar, with immutable-slug,
+  color and absolute-workdir validation, then open the new board immediately.
+- Collaboration form with per-worker assignments, deliverables, acceptance
+  criteria, independent review guidance and a live dependency preview.
+- Reopenable collaboration progress from the board and task drawer, including
+  blocked tasks, explicit verification status and the final handoff summary.
+- Isolated native CLI integration coverage for dependencies and idempotency.
+
+### Fixed
+- Use native Swarm flags (`--worker`, `--verifier`, `--synthesizer`, `--json`)
+  and an idempotency key; send the complete brief to every task.
+- Do not treat an immediately completed Swarm root as a completed collaboration.
+- Display task results and latest run summaries in the task drawer.
+- Pass the block reason as the native positional argument.
+
+### Removed
+- Two-board comparison controls and their state, styles, and help text.
+  Navigation now focuses on the all-board overview and single-board workspace.
+
+## [0.5.0] - 2026-10-04
+
+### Added
+- Searchable workspace navigation with favorites, archived-board access,
+  a summary overview, and an optional two-board comparison.
+- Per-board filter and scroll memory, removable filter chips, status shortcuts,
+  loading/empty/error states, and retry feedback.
+- Right-side task drawer with keyboard-operable cards, per-task action drafts,
+  and an explicit update notice while reading.
+- Responsive mobile navigation and optional activity panel; neutral light/dark
+  themes, consistent icons, visible focus states, and reduced-motion support.
+- SSE regression tests and an optional synthetic 16-board Playwright suite.
+
+### Changed
+- Poll only the selected board(s), or just the catalog in overview mode.
+  Gateway log streaming is enabled only while the activity panel is open.
+- Run SSE CLI reads off the event loop and refresh the board catalog every
+  15 seconds (or the configured poll interval, if longer).
+
+### Fixed
+- Keep archived tasks included during live updates; detect title/body changes
+  even when task status is unchanged.
+- Prevent duplicate submissions and stale task-detail responses.
+- Allow closing an empty creation form and reset scroll when switching detail
+  tabs; keep loaded tasks visible when a refresh fails.
 
 ## [0.4.0] - 2026-10-04
 

@@ -17,8 +17,10 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import shlex
 import subprocess
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -37,10 +39,13 @@ GATEWAY_LOG = HERMES_HOME / "logs" / "gateway.log"
 TASK_LOG_DIR = HERMES_HOME / "kanban" / "logs"
 TOKEN = os.environ.get("DASHBOARD_TOKEN")
 POLL_SECONDS = float(os.environ.get("DASHBOARD_POLL", "2.0"))
+BOARD_CREATE_LOCK = threading.Lock()
+BOARD_SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
+BOARD_COLOR_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 APP_DIR = Path(__file__).resolve().parent
 
-app = FastAPI(title="Hermes Kanban Dashboard", version="0.4.0")
+app = FastAPI(title="Hermes Kanban Dashboard", version="0.5.0")
 app.mount("/static", StaticFiles(directory=str(APP_DIR / "static")), name="static")
 
 
@@ -81,8 +86,7 @@ def _hermes_json(args: list[str]) -> Any:
 
 
 def _list_boards() -> list[dict]:
-    data = _hermes_json(["boards", "list", "--json"])
-    return [b for b in data if not b.get("archived")]
+    return _hermes_json(["boards", "list", "--all", "--json"])
 
 
 def _board_slugs() -> list[str]:
@@ -211,15 +215,31 @@ class CreatePayload(BaseModel):
     idempotency_key: str | None = None
 
 
+class SwarmWorkerPayload(BaseModel):
+    profile: str = Field(min_length=1, max_length=64)
+    title: str = Field(min_length=1, max_length=400)
+
+
 class SwarmPayload(BaseModel):
     title: str = Field(min_length=1, max_length=400)
-    body: str | None = None
-    workers: int = Field(default=3, ge=1, le=16)
-    worker_assignee: str | None = None
-    verifier_assignee: str | None = None
-    synth_assignee: str | None = None
-    tenant: str | None = None
-    project: str | None = None
+    body: str = Field(default="", max_length=8000)
+    deliverable: str = Field(min_length=1, max_length=4000)
+    acceptance: str = Field(min_length=1, max_length=4000)
+    workers: list[SwarmWorkerPayload] = Field(min_length=1, max_length=16)
+    verifier_assignee: str = Field(min_length=1, max_length=64)
+    synth_assignee: str = Field(min_length=1, max_length=64)
+    tenant: str | None = Field(default=None, max_length=128)
+    priority: int = Field(default=0, ge=0, le=100)
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
+class BoardCreatePayload(BaseModel):
+    slug: str = Field(min_length=1, max_length=64)
+    name: str = Field(min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=1000)
+    icon: str | None = Field(default=None, max_length=16)
+    color: str | None = Field(default=None, max_length=7)
+    default_workdir: str | None = Field(default=None, max_length=1024)
 
 
 def _ok(args: list[str], stdin_data: str | None = None) -> dict:
@@ -227,6 +247,46 @@ def _ok(args: list[str], stdin_data: str | None = None) -> dict:
     if rc != 0:
         raise HTTPException(400, detail={"cmd": args, "rc": rc, "stderr": err[-800:], "stdout": out[-400:]})
     return {"ok": True, "stdout": out[-1600:], "stderr": err[-400:]}
+
+
+@app.post("/api/boards", dependencies=[Depends(require_token)], status_code=201)
+def act_create_board(payload: BoardCreatePayload) -> dict:
+    slug = payload.slug.strip()
+    name = payload.name.strip()
+    description = (payload.description or "").strip()
+    icon = (payload.icon or "").strip()
+    color = (payload.color or "").strip()
+    default_workdir = (payload.default_workdir or "").strip()
+    if not BOARD_SLUG_RE.fullmatch(slug):
+        raise HTTPException(422, "slug must be 1-64 lowercase letters, numbers, hyphens or underscores")
+    if not name:
+        raise HTTPException(422, "display name is required")
+    if color and not BOARD_COLOR_RE.fullmatch(color):
+        raise HTTPException(422, "color must be a six-digit hex value")
+    if default_workdir and not Path(default_workdir).expanduser().is_absolute():
+        raise HTTPException(422, "default work directory must be an absolute path")
+
+    # The native command updates an existing board, so serialize the existence
+    # check with creation and fail instead of silently overwriting metadata.
+    with BOARD_CREATE_LOCK:
+        if slug in _board_slugs():
+            raise HTTPException(409, f"board {slug!r} already exists")
+        args = ["boards", "create", slug, "--name", name]
+        if description:
+            args.extend(["--description", description])
+        if icon:
+            args.extend(["--icon", icon])
+        if color:
+            args.extend(["--color", color])
+        if default_workdir:
+            args.extend(["--default-workdir", default_workdir])
+        rc, out, err = _run_hermes(args)
+        if rc != 0:
+            raise HTTPException(400, detail={"rc": rc, "stderr": err[-1200:]})
+        board = next((b for b in _list_boards() if b["slug"] == slug), None)
+        if board is None:
+            raise HTTPException(502, "Hermes reported success but the new board was not discoverable")
+    return {"ok": True, "board": board}
 
 
 @app.post("/api/tasks/{board}/{task_id}/comment", dependencies=[Depends(require_token)])
@@ -249,7 +309,7 @@ def act_block(board: str, task_id: str, payload: ReasonPayload) -> dict:
     _ensure_board(board)
     args = ["--board", board, "block", task_id]
     if payload.reason:
-        args.extend(["--reason", payload.reason])
+        args.extend(["--", payload.reason])
     return _ok(args)
 
 
@@ -335,52 +395,168 @@ def act_create(board: str, payload: CreatePayload) -> dict:
 @app.post("/api/boards/{board}/swarm", dependencies=[Depends(require_token)])
 def act_swarm(board: str, payload: SwarmPayload) -> dict:
     _ensure_board(board)
-    args: list[str] = ["--board", board, "swarm", "--workers", str(payload.workers)]
-    if payload.body is not None:
-        args.extend(["--body-file", "-"])
-    if payload.worker_assignee:
-        args.extend(["--worker-assignee", payload.worker_assignee])
-    if payload.verifier_assignee:
-        args.extend(["--verifier-assignee", payload.verifier_assignee])
-    if payload.synth_assignee:
-        args.extend(["--synth-assignee", payload.synth_assignee])
+    if next(b for b in _list_boards() if b["slug"] == board).get("archived"):
+        raise HTTPException(400, "Cannot create in an archived board")
+    profiles = {a["name"] for a in _hermes_json(["assignees", "--json"]) if a.get("on_disk", True)}
+    chosen = [w.profile for w in payload.workers] + [payload.verifier_assignee, payload.synth_assignee]
+    if any(p not in profiles or ":" in p for p in chosen):
+        raise HTTPException(422, "Choose an available profile for every role")
+    if any(not w.title.strip() or ":" in w.title for w in payload.workers):
+        raise HTTPException(422, "Worker titles must be nonempty; use a full-width colon (：) instead of ':'")
+    if not all(s.strip() for s in [payload.title, payload.deliverable, payload.acceptance]):
+        raise HTTPException(422, "Goal, deliverable and acceptance criteria are required")
+    # Native swarm accepts the complete shared brief as the positional goal.
+    # One atomic native operation creates all cards and their dependencies.
+    goal = (f"{payload.title.strip()}\n\n{payload.body.strip()}\n\n"
+            f"## Deliverable / 交付物\n{payload.deliverable.strip()}\n\n"
+            f"## Acceptance criteria / 验收标准\n{payload.acceptance.strip()}")
+    args = ["--board", board, "swarm", "--json",
+            "--verifier", payload.verifier_assignee,
+            "--synthesizer", payload.synth_assignee,
+            "--priority", str(payload.priority),
+            "--idempotency-key", payload.idempotency_key]
+    for worker in payload.workers:
+        args.extend(["--worker", f"{worker.profile}:{worker.title.strip()}"])
     if payload.tenant:
         args.extend(["--tenant", payload.tenant])
-    if payload.project:
-        args.extend(["--project", payload.project])
-    args.append(payload.title)
-    return _ok(args, stdin_data=payload.body)
+    args.extend(["--", goal])
+    rc, out, err = _run_hermes(args)
+    if rc != 0:
+        raise HTTPException(400, detail={"rc": rc, "stderr": err[-1200:]})
+    try:
+        topology = json.loads(out)
+        if not topology.get("root_id"):
+            raise ValueError("missing root_id")
+    except (ValueError, AttributeError):
+        raise HTTPException(502, "Unexpected CLI response; retry with the same idempotency key")
+    return {"ok": True, "swarm": topology}
+
+
+def _swarm_topology(data: dict) -> dict | None:
+    topology = None
+    for comment in data.get("comments", []):
+        body = comment.get("body") or ""
+        if not body.startswith("[swarm:blackboard] "):
+            continue
+        try:
+            entry = json.loads(body[len("[swarm:blackboard] "):])
+            value = entry.get("value")
+            if entry.get("key") == "topology" and isinstance(value, dict):
+                if isinstance(value.get("worker_ids"), list) and value.get("verifier_id") and value.get("synthesizer_id"):
+                    topology = value
+        except (ValueError, AttributeError):
+            continue
+    return topology
+
+
+@app.get("/api/swarms/{board}/{root_id}", dependencies=[Depends(require_token)])
+def show_swarm(board: str, root_id: str) -> dict:
+    _ensure_board(board)
+    root = _hermes_json(["--board", board, "show", root_id, "--json"])
+    topology = _swarm_topology(root)
+    if not topology:
+        raise HTTPException(404, "This card has no Swarm topology")
+    tasks = {t["id"]: t for t in _hermes_json(["--board", board, "list", "--json", "--archived"])}
+    ids = topology["worker_ids"] + [topology["verifier_id"], topology["synthesizer_id"]]
+    cards = [tasks.get(i, {"id": i, "status": "missing"}) for i in ids]
+    for card in cards:
+        if card["status"] == "blocked":
+            detail = _hermes_json(["--board", board, "show", card["id"], "--json"])
+            card["blocked_reason"] = card.get("last_failure_error") or ""
+            for event in reversed(detail.get("events", [])):
+                if event.get("kind") != "blocked":
+                    continue
+                value = event.get("payload") or {}
+                if isinstance(value, str):
+                    try:
+                        value = json.loads(value)
+                    except ValueError:
+                        value = {}
+                if isinstance(value, dict):
+                    card["blocked_reason"] = value.get("reason") or card["blocked_reason"]
+                break
+    verifier = _hermes_json(["--board", board, "show", topology["verifier_id"], "--json"]) if topology["verifier_id"] in tasks else {}
+    synthesis = _hermes_json(["--board", board, "show", topology["synthesizer_id"], "--json"]) if topology["synthesizer_id"] in tasks else {}
+    gate = None
+    # Use only the latest run; a previous pass must not mask a failed rerun.
+    runs = verifier.get("runs") or []
+    if runs:
+        run = max(runs, key=lambda r: r.get("id", 0))
+        metadata = run.get("metadata") or {}
+        if isinstance(metadata, str):
+            try:
+                metadata = json.loads(metadata)
+            except ValueError:
+                metadata = {}
+        if isinstance(metadata, dict):
+            gate = metadata.get("gate")
+    if any(c["status"] == "missing" for c in cards):
+        phase = "incomplete"
+    elif any(c["status"] == "blocked" for c in cards):
+        phase = "blocked"
+    elif any(c["status"] == "archived" for c in cards):
+        phase = "archived"
+    elif any(c["status"] != "done" for c in cards[:-2]):
+        phase = "workers"
+    elif cards[-2]["status"] != "done":
+        phase = "verifier"
+    elif gate != "pass":
+        phase = "unverified"
+    elif cards[-1]["status"] != "done":
+        phase = "synthesis"
+    else:
+        phase = "done"
+    return {"board": board, "root": root["task"], "topology": topology,
+            "cards": cards, "phase": phase, "gate": gate,
+            "completed": sum(c["status"] == "done" for c in cards), "total": len(cards),
+            "result": (synthesis.get("task") or {}).get("result") or synthesis.get("latest_summary") or ""}
 
 
 # ─── SSE ───────────────────────────────────────────────────────────────────────
 
 
-async def _event_stream(request: Request, boards_filter: list[str] | None):
+async def _event_stream(
+    request: Request,
+    boards_filter: list[str] | None,
+    include_archived: bool = False,
+    gateway: bool = True,
+):
     last_snapshot: dict[str, Any] = {}
     log_pos = GATEWAY_LOG.stat().st_size if GATEWAY_LOG.exists() else 0
+    available: list[str] = []
+    next_catalog_refresh = 0.0
 
     yield f": connected at {time.time()}\n\n"
     while True:
         if await request.is_disconnected():
             break
-        try:
-            available = _board_slugs()
-        except HTTPException as exc:
-            yield f"event: error\ndata: {json.dumps({'boards_error': str(exc.detail)})}\n\n"
-            available = []
-        targets = [b for b in available if (not boards_filter or b in boards_filter)]
-        for board in targets:
+        if time.monotonic() >= next_catalog_refresh:
             try:
-                tasks = _hermes_json(["--board", board, "list", "--json", "--sort", "updated"])
+                catalog = await asyncio.to_thread(_list_boards)
+                available = [b["slug"] for b in catalog]
+                yield f"event: boards\ndata: {json.dumps({'boards': catalog}, ensure_ascii=False)}\n\n"
+            except HTTPException as exc:
+                yield f"event: error\ndata: {json.dumps({'boards_error': str(exc.detail)})}\n\n"
+            next_catalog_refresh = time.monotonic() + max(15.0, POLL_SECONDS)
+        # None preserves the original API default; [] subscribes only to summaries.
+        targets = [b for b in available if boards_filter is None or b in boards_filter]
+        for board in targets:
+            if await request.is_disconnected():
+                return
+            try:
+                args = ["--board", board, "list", "--json", "--sort", "updated"]
+                if include_archived:
+                    args.append("--archived")
+                tasks = await asyncio.to_thread(_hermes_json, args)
             except HTTPException as exc:
                 yield f"event: error\ndata: {json.dumps({'board': board, 'error': str(exc.detail)}, ensure_ascii=False)}\n\n"
                 continue
-            sig = [(t.get("id"), t.get("status"), t.get("assignee"), t.get("completed_at"), t.get("started_at")) for t in tasks]
+            sig = json.dumps(tasks, sort_keys=True, ensure_ascii=False)
             if last_snapshot.get(board) != sig:
                 last_snapshot[board] = sig
                 payload = {"board": board, "tasks": tasks, "ts": time.time()}
                 yield f"event: tasks\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
-        if GATEWAY_LOG.exists():
+        if gateway and GATEWAY_LOG.exists():
             size = GATEWAY_LOG.stat().st_size
             if size < log_pos:
                 log_pos = 0
@@ -402,10 +578,20 @@ async def _event_stream(request: Request, boards_filter: list[str] | None):
 
 
 @app.get("/api/events")
-async def events(request: Request, token: str | None = Query(default=None), boards: str | None = Query(default=None)):
+async def events(
+    request: Request,
+    token: str | None = Query(default=None),
+    boards: str | None = Query(default=None),
+    include_archived: bool = False,
+    gateway: bool = True,
+):
     require_token(request, token)
-    boards_filter = [b.strip() for b in boards.split(",") if b.strip()] if boards else None
-    return StreamingResponse(_event_stream(request, boards_filter), media_type="text/event-stream")
+    boards_filter = [b.strip() for b in boards.split(",") if b.strip()] if boards is not None else None
+    return StreamingResponse(
+        _event_stream(request, boards_filter, include_archived, gateway),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 if __name__ == "__main__":

@@ -25,6 +25,8 @@ jobs:
           pip install -r requirements.txt
       - name: Compile all
         run: python -m compileall -q server.py
+      - name: SSE regression tests
+        run: python -m unittest discover -s tests -p 'test_*.py'
       - name: Boot-check imports
         env:
           HERMES_BIN: /bin/true
@@ -44,7 +46,10 @@ jobs:
       - name: node --check static/*.js
         run: |
           node --check static/app.js
+          node --check static/boards.js
           node --check static/i18n.js
+          node --check static/workspace.js
+          node --check static/swarm.js
 
   docker:
     name: docker build
