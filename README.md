@@ -1,6 +1,6 @@
 # Hermes Kanban Dashboard
 
-[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+[![CI](https://github.com/xiaoxipanda/hermes-kanban-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/xiaoxipanda/hermes-kanban-dashboard/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-informational.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Platform: macOS · Linux · Docker](https://img.shields.io/badge/platform-macOS%20%7C%20Linux%20%7C%20Docker-lightgrey.svg)](docs/DEPLOY.md)
@@ -53,7 +53,7 @@ host that already has Hermes installed.
 ### Quick start
 
 ```sh
-git clone https://github.com/OWNER/REPO.git hermes-kanban-dashboard
+git clone https://github.com/xiaoxipanda/hermes-kanban-dashboard.git
 cd hermes-kanban-dashboard
 
 # Create .venv and install dependencies (and optionally the launchd agent).
@@ -170,7 +170,7 @@ MIT — see [LICENSE](LICENSE).
 ### 快速开始
 
 ```sh
-git clone https://github.com/OWNER/REPO.git hermes-kanban-dashboard
+git clone https://github.com/xiaoxipanda/hermes-kanban-dashboard.git
 cd hermes-kanban-dashboard
 
 # 创建 .venv 并安装依赖(可选同时注册 launchd 自启动)
