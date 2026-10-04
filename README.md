@@ -14,6 +14,10 @@ host that already has Hermes installed.
 [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) ·
 [Security](SECURITY.md)
 
+<p align="center">
+  <img src="docs/images/overview.png" alt="Hermes Kanban Dashboard all-board overview" width="100%">
+</p>
+
 ---
 
 ## English
@@ -133,12 +137,12 @@ Docker, Tailscale, and reverse-proxy recipes.
 
 ### Screenshots
 
-> Add `docs/dashboard-dark.png` / `docs/dashboard-light.png` to replace this
-> placeholder.
+Screenshots use synthetic fixture data. No production tasks, paths, or
+identities are included.
 
-| Dark | Light |
+| Task details | Collaboration workflow |
 |---|---|
-| *(screenshot)* | *(screenshot)* |
+| <img src="docs/images/task-details.png" alt="Task details drawer" width="700"> | <img src="docs/images/collaboration.png" alt="New collaboration workflow" width="700"> |
 
 ### License
 
