@@ -22,18 +22,18 @@ NAMES = [
     "Personal Workspace", "One Personal Company", "Product & Design",
     "Research Lab", "Engineering", "Customer Experience", "Content Studio",
     "Operations", "Growth Experiments", "Knowledge Base", "Hiring",
-    "International Launch — 跨团队产品发布与用户研究协作工作空间",
+    "International Launch and Cross-Team Research Workspace",
     "Quality Assurance", "Partnerships", "New Workspace", "Archive 2025",
 ]
 TASK_TITLES = [
-    "整理本周产品反馈，确认下一轮迭代范围",
-    "实现看板导航和任务状态实时更新",
+    "Compile weekly product feedback and confirm the next iteration scope",
+    "Implement live board navigation and task status updates",
     "Review onboarding flow and improve keyboard navigation",
-    "等待接口权限确认后接入新数据源",
-    "校验移动端布局、长标题和中英文混排",
+    "Connect the new data source after access is approved",
+    "Validate mobile layouts, long titles, and multilingual content",
     "Schedule weekly research synthesis",
-    "梳理任务依赖与交付验收标准",
-    "完成设计规范与组件间距整理",
+    "Define task dependencies and delivery acceptance criteria",
+    "Polish design tokens and component spacing",
 ]
 STATUSES = ["running", "ready", "review", "blocked", "todo", "scheduled", "triage", "done"]
 NOW = time.time()
@@ -41,12 +41,12 @@ TASKS = {
     f"board-{i}": [
         {
             "id": f"t_{i}_{j}", "title": TASK_TITLES[j % 8],
-            "body": "## 交付目标\n\n保持清晰的任务层级与阅读体验。\n\n" + ("- 可访问性与响应式验收\n" * 20),
+            "body": "## Delivery goal\n\nKeep task ownership, evidence, and next actions explicit.\n\n" + ("- Verify accessibility and responsive behavior\n" * 20),
             "status": STATUSES[j % 8], "assignee": ["dev", "research", "reviewer"][j % 3],
             "priority": 2 if j % 5 == 0 else 0, "created_at": NOW - 3600 * (j + 1),
             "started_at": NOW - 300 if j % 8 == 0 else None,
             "completed_at": NOW - 600 if j % 8 == 7 else None,
-            "blocked_reason": "等待数据源访问权限，需负责人确认。",
+            "blocked_reason": "Waiting for the owner to approve data-source access.",
         } for j in range(40 if i == 0 else 8)
     ] for i in range(16)
 }
@@ -62,7 +62,7 @@ EXTRA_BOARDS = []
 def catalog():
     boards = [
         {
-            "slug": f"board-{i}", "name": name, "description": "管理任务、跟进进展，让每一次交付清晰可见。",
+            "slug": f"board-{i}", "name": name, "description": "Track ownership, progress, blockers, and delivery in one focused workspace.",
             "archived": i == 15, "total": len(TASKS[f"board-{i}"]),
             "counts": {s: sum(t["status"] == s for t in TASKS[f"board-{i}"]) for s in STATUSES + ["archived"]},
         } for i, name in enumerate(NAMES)
@@ -89,7 +89,7 @@ def fixture_cli(args):
         return {"task": copy.deepcopy(next(t for t in TASKS[board] if t["id"] == args[3])),
                 "latest_summary": "Final delivery" if task_id == "t_synth" else None,
                 "runs": [{"id": 1, "metadata": {"gate": "pass"}}] if task_id == "t_verify" else [],
-                "comments": [{"author": "reviewer", "body": "已确认验收范围。", "created_at": NOW}],
+                "comments": [{"author": "reviewer", "body": "Acceptance scope confirmed.", "created_at": NOW}],
                 "events": [{"kind": "created", "created_at": NOW}]}
     raise AssertionError(args)
 
@@ -144,7 +144,7 @@ def run():
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(executable_path=os.environ.get("CHROME_PATH", "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"), headless=True)
-            ctx = browser.new_context(viewport={"width": 1440, "height": 1000}, locale="zh-CN", reduced_motion="reduce")
+            ctx = browser.new_context(viewport={"width": 1440, "height": 1000}, locale="en-US", reduced_motion="reduce")
             page = ctx.new_page()
             errors = []
             page.on("pageerror", lambda error: errors.append(str(error)))
@@ -156,23 +156,23 @@ def run():
 
             # Independent per-board filters, archived tasks and reload persistence.
             page.locator("#filter-assignee").select_option("dev")
-            page.locator("#search").fill("导航")
+            page.locator("#search").fill("task status")
             expect(page.locator(".card")).to_have_count(2)
             page.locator('[data-open-board="board-1"].board-link').click()
             expect(page.locator(".card")).to_have_count(8)
             expect(page.locator("#search")).to_have_value("")
             page.locator('[data-open-board="board-0"].board-link').click()
             expect(page.locator("#filter-assignee")).to_have_value("dev")
-            expect(page.locator("#search")).to_have_value("导航")
+            expect(page.locator("#search")).to_have_value("task status")
             page.reload()
-            expect(page.locator("#search")).to_have_value("导航")
+            expect(page.locator("#search")).to_have_value("task status")
             expect(page.locator(".card")).to_have_count(2)
             page.locator('.clear-filters').click()
             page.locator(".ios-switch").click()
             expect(page.locator(".card")).to_have_count(41)
             expect(page.locator('[data-task-id="t_archived"]')).to_have_count(1)
-            TASKS["board-0"][0]["title"] = "SSE 更新后的标题"
-            expect(page.locator('[data-task-id="t_0_0"] .title')).to_have_text("SSE 更新后的标题")
+            TASKS["board-0"][0]["title"] = "Title updated through SSE"
+            expect(page.locator('[data-task-id="t_0_0"] .title')).to_have_text("Title updated through SSE")
             expect(page.locator('[data-task-id="t_archived"]')).to_have_count(1)
             page.locator('.clear-filters').click()
             print("PASS filters survive board switches/reload; SSE preserves archived tasks", flush=True)
@@ -180,8 +180,8 @@ def run():
             # Status collapse and scroll positions survive updates/navigation.
             page.locator('.col-running summary').click()
             expect(page.locator('.col-running')).not_to_have_attribute("open", "")
-            TASKS["board-0"][1]["title"] += " · 更新"
-            expect(page.locator('[data-task-id="t_0_1"] .title')).to_contain_text("更新")
+            TASKS["board-0"][1]["title"] += " · updated"
+            expect(page.locator('[data-task-id="t_0_1"] .title')).to_contain_text("updated")
             expect(page.locator('.col-running')).not_to_have_attribute("open", "")
             page.locator('.col-running summary').click()
             page.locator(".columns").hover()
@@ -198,12 +198,12 @@ def run():
             card = page.locator('[data-task-id="t_0_0"]')
             card.focus()
             page.keyboard.press("Enter")
-            expect(page.locator("#drawer-title")).to_have_text("SSE 更新后的标题")
+            expect(page.locator("#drawer-title")).to_have_text("Title updated through SSE")
             page.locator('[data-tab="actions"]').click()
             page.locator("#input-comment").fill("尚未提交的草稿")
             TASKS["board-0"][0]["title"] = "Another live title"
             expect(page.locator("#drawer-update")).to_be_visible()
-            expect(page.locator("#drawer-title")).to_have_text("SSE 更新后的标题")
+            expect(page.locator("#drawer-title")).to_have_text("Title updated through SSE")
             expect(page.locator("#input-comment")).to_have_value("尚未提交的草稿")
             page.locator("#drawer-update").click()
             expect(page.locator("#drawer-title")).to_have_text("Another live title")
@@ -218,7 +218,7 @@ def run():
             page.locator('[data-tab="actions"]').click()
             expect(page.locator("#input-comment")).to_have_value("尚未提交的草稿")
             page.locator('[data-tab="overview"]').click()
-            expect(page.locator("#drawer-body-md")).to_contain_text("交付目标")
+            expect(page.locator("#drawer-body-md")).to_contain_text("Delivery goal")
             page.screenshot(path=str(shots / "drawer-desktop.png"))
             page.keyboard.press("Escape")
             print("PASS keyboard drawer, live update notice, per-task drafts", flush=True)
@@ -234,7 +234,7 @@ def run():
             page.locator("#overview-btn").click()
             expect(page.locator(".overview-card")).to_have_count(15)
             expect(page.locator(".board")).to_have_count(0)
-            page.locator("#board-search").fill("Research")
+            page.locator("#board-search").fill("Research Lab")
             expect(page.locator(".overview-card")).to_have_count(1)
             page.locator('[data-favorite="board-3"]').click()
             page.locator("#board-search").fill("")
@@ -254,7 +254,7 @@ def run():
             expect(page.locator(".card")).to_have_count(8)
             expect(page.locator("#workspace-notice")).not_to_be_visible()
             page.locator("#search").fill("no-matches-123")
-            expect(page.locator(".empty-state")).to_contain_text("没有匹配")
+            expect(page.locator(".empty-state")).to_contain_text("No matching")
             page.locator(".empty-state button").click()
             expect(page.locator(".card")).to_have_count(8)
             page.locator('[data-open-board="board-14"].board-link').click()
@@ -281,7 +281,7 @@ def run():
             expect(page.locator(".custom-icon")).to_have_count(0)
             page.locator("#board-name").fill("Content Growth")
             expect(page.locator("#board-slug")).to_have_value("content-growth")
-            page.locator("#board-description").fill("内容与获客实验")
+            page.locator("#board-description").fill("Content and acquisition experiments")
             page.locator('[data-board-icon="🚀"]').click()
             expect(page.locator("#board-icon")).to_have_value("🚀")
             expect(page.locator('[data-board-icon="🚀"]')).to_have_attribute("aria-pressed", "true")
@@ -289,7 +289,7 @@ def run():
             page.locator("#board-workdir").fill("relative/path")
             page.locator("#board-submit").click()
             expect(page.locator("#board-dialog")).to_be_visible()
-            expect(page.locator("#board-workdir")).to_have_js_property("validationMessage", "默认工作目录必须是绝对路径，以 / 开头。")
+            expect(page.locator("#board-workdir")).to_have_js_property("validationMessage", "The default work directory must be an absolute path starting with /.")
             page.locator("#board-workdir").fill("/tmp/content-growth")
             page.set_viewport_size({"width": 390, "height": 844})
             assert page.locator("#board-dialog").evaluate("(el) => el.scrollWidth <= el.clientWidth")
@@ -331,13 +331,13 @@ def run():
             page.locator("#swarm-submit").dblclick()
             expect(page.locator("#swarm-progress-dialog")).to_be_visible()
             expect(page.locator("#swarm-progress-content")).to_contain_text("0 / 4")
-            expect(page.locator("#swarm-progress-content")).to_contain_text("等待调度")
+            expect(page.locator("#swarm-progress-content")).to_contain_text("Assignments queued")
             assert len([c for c in WRITES if c[2] == "swarm"]) == 1
             for task in TASKS["board-14"]:
                 if task["id"] in ["t_worker_0", "t_worker_1", "t_verify", "t_synth"]:
                     task["status"] = "done"
             page.locator("#swarm-progress-refresh").click()
-            expect(page.locator("#swarm-progress-content")).to_contain_text("协作任务已完成")
+            expect(page.locator("#swarm-progress-content")).to_contain_text("Collaboration complete")
             expect(page.locator(".swarm-output")).to_contain_text("Final delivery")
             page.screenshot(path=str(shots / "swarm-progress.png"))
             page.locator('[data-swarm-task="t_synth"]').click()
@@ -357,6 +357,7 @@ def run():
             page.locator("#theme-btn").click()
             page.screenshot(path=str(shots / "desktop-light.png"))
             page.locator("#overview-btn").click()
+            expect(page.locator("#sse-text")).to_have_text("Live")
             page.screenshot(path=str(shots / "overview-light.png"))
             page.locator('[data-open-board="board-0"].board-link').click()
             for width, height in [(820, 1000), (556, 916), (390, 844)]:
@@ -374,7 +375,7 @@ def run():
             page.screenshot(path=str(shots / "mobile-activity.png"))
             page.locator("#activity-close").click()
             page.locator(".card").first.click()
-            expect(page.locator("#drawer-body-md")).to_contain_text("交付目标")
+            expect(page.locator("#drawer-body-md")).to_contain_text("Delivery goal")
             page.screenshot(path=str(shots / "mobile-drawer.png"))
             page.keyboard.press("Escape")
             assert not errors, errors

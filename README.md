@@ -144,9 +144,9 @@ Docker, Tailscale, and reverse-proxy recipes.
 Screenshots use synthetic fixture data. No production tasks, paths, or
 identities are included.
 
-| Task details | Collaboration workflow |
+| Task details | Collaboration progress |
 |---|---|
-| <img src="docs/images/task-details.png" alt="Task details drawer" width="700"> | <img src="docs/images/collaboration.png" alt="New collaboration workflow" width="700"> |
+| <img src="docs/images/task-details.png" alt="Task details drawer" width="700"> | <img src="docs/images/collaboration.png" alt="Collaboration workflow progress" width="700"> |
 
 ### License
 
