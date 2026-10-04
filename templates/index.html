@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <title>Hermes Kanban · Live Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+</head>
+<body>
+  <div class="bg-aurora"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo-dot"></span>
+      <strong>Hermes Kanban</strong>
+      <span class="muted brand-sub" data-i18n="brand.sub">· 实时看板</span>
+    </div>
+
+    <div class="toolbar">
+      <div class="search-wrap" data-tip="search.tip">
+        <span class="search-icon">🔍</span>
+        <input id="search" type="search" data-i18n-ph="search.ph" placeholder="搜索卡片（id / 标题 / 正文 / assignee）  —  按 /" />
+      </div>
+      <label class="filter-field" data-tip="filter.status.tip">
+        <span class="k" data-i18n="filter.status">状态</span>
+        <select id="filter-status"></select>
+      </label>
+      <label class="filter-field" data-tip="filter.assignee.tip">
+        <span class="k" data-i18n="filter.assignee">Assignee</span>
+        <select id="filter-assignee"></select>
+      </label>
+      <label class="inline switch" data-tip="filter.archived.tip">
+        <input id="toggle-archived" type="checkbox" />
+        <span data-i18n="filter.archived">含归档</span>
+      </label>
+    </div>
+
+    <div class="status">
+      <span id="sse-indicator" class="dot off" data-tip="sse.tip"></span>
+      <span id="sse-text" class="muted" data-tip="sse.tip">connecting…</span>
+      <span id="last-tick" class="muted" data-tip="tick.tip">—</span>
+
+      <button id="new-task-btn" class="primary" data-tip="btn.new.tip">
+        <span class="icon">＋</span><span data-i18n="btn.new">新建任务</span>
+      </button>
+      <button id="new-swarm-btn" data-tip="btn.swarm.tip">
+        <span class="icon">⚡</span><span data-i18n="btn.swarm">Swarm</span>
+      </button>
+      <button id="refresh-btn" data-tip="btn.refresh.tip" aria-label="refresh"><span class="icon">↻</span></button>
+
+      <div class="divider"></div>
+
+      <button id="lang-btn" class="ghost chip" data-tip="btn.lang.tip">
+        <span class="icon">🌐</span><span id="lang-label">中</span>
+      </button>
+      <button id="theme-btn" class="ghost chip" data-tip="btn.theme.tip">
+        <span class="icon" id="theme-icon">🌙</span>
+      </button>
+      <button id="help-btn" class="ghost chip" data-tip="btn.help.tip" aria-label="help"><span class="icon">?</span></button>
+    </div>
+  </header>
+
+  <main>
+    <section id="boards-wrap" class="boards"></section>
+    <aside class="eventlog">
+      <header>
+        <strong data-i18n="events.title" data-tip="events.tip">Gateway 事件流</strong>
+        <div>
+          <button id="pause-events" data-tip="events.pause.tip" data-i18n="events.pause">暂停</button>
+          <button id="clear-events" data-tip="events.clear.tip" data-i18n="events.clear">清空</button>
+        </div>
+      </header>
+      <ol id="event-list"></ol>
+      <div class="eventlog-tip muted" data-i18n="events.hint">提示：这是 Hermes Gateway 的实时日志。要看某张卡的 worker 输出，请打开抽屉的"任务日志" Tab。</div>
+    </aside>
+  </main>
+
+  <!-- 任务抽屉 -->
+  <dialog id="task-drawer">
+    <form method="dialog" class="drawer">
+      <header>
+        <strong id="drawer-title">—</strong>
+        <div class="drawer-tools">
+          <button type="button" id="drawer-copy-id" data-tip="drawer.copyid.tip" data-i18n="drawer.copyid">复制 id</button>
+          <button value="close" data-tip="drawer.close.tip" aria-label="close">✕</button>
+        </div>
+      </header>
+      <div id="drawer-meta" class="meta"></div>
+      <nav class="tabs">
+        <button type="button" class="tab active" data-tab="overview" data-tip="tab.overview.tip"><span>📄</span><span data-i18n="tab.overview">概览</span></button>
+        <button type="button" class="tab" data-tab="comments" data-tip="tab.comments.tip"><span>💬</span><span data-i18n="tab.comments">评论</span></button>
+        <button type="button" class="tab" data-tab="events" data-tip="tab.events.tip"><span>⚡</span><span data-i18n="tab.events">事件</span></button>
+        <button type="button" class="tab" data-tab="log" data-tip="tab.log.tip"><span>📜</span><span data-i18n="tab.log">任务日志</span></button>
+        <button type="button" class="tab" data-tab="actions" data-tip="tab.actions.tip"><span>🛠</span><span data-i18n="tab.actions">操作</span></button>
+      </nav>
+      <div class="drawer-body">
+        <section data-pane="overview" class="pane active">
+          <h3 data-i18n="pane.overview.h">任务说明</h3>
+          <div id="drawer-body-md" class="md"></div>
+        </section>
+        <section data-pane="comments" class="pane">
+          <h3 data-i18n="pane.comments.h">评论（最近 30 条）</h3>
+          <ol id="drawer-comments"></ol>
+        </section>
+        <section data-pane="events" class="pane">
+          <h3 data-i18n="pane.events.h">生命周期事件（最近 50 条）</h3>
+          <ol id="drawer-events"></ol>
+        </section>
+        <section data-pane="log" class="pane">
+          <h3><span data-i18n="pane.log.h">Worker 输出</span> <span class="muted" id="drawer-log-size">—</span></h3>
+          <pre id="drawer-log" class="log"></pre>
+          <button type="button" id="drawer-log-refresh" data-tip="drawer.log.refresh.tip">↻ <span data-i18n="drawer.log.refresh">刷新日志</span></button>
+        </section>
+        <section data-pane="actions" class="pane">
+          <p class="pane-hint muted" data-i18n="pane.actions.hint">每项操作等同一次 <code>hermes kanban …</code> CLI 调用，成功后抽屉与看板会自动刷新。</p>
+          <div class="actions-grid">
+            <label class="act-card" data-tip="act.comment.tip">
+              <span>💬 <span data-i18n="act.comment">追加评论</span></span>
+              <textarea id="input-comment" rows="3" data-i18n-ph="act.comment.ph" placeholder="评论内容（支持 Markdown）"></textarea>
+              <button type="button" data-action="comment" data-i18n="act.comment.btn">提交评论</button>
+            </label>
+            <label class="act-card" data-tip="act.unblock.tip">
+              <span>▶ <span data-i18n="act.unblock">解除阻塞（Unblock）</span></span>
+              <input id="input-unblock" data-i18n-ph="act.unblock.ph" placeholder="解除阻塞的原因（可选）" />
+              <button type="button" data-action="unblock" data-i18n="act.unblock.btn">Unblock</button>
+            </label>
+            <label class="act-card" data-tip="act.block.tip">
+              <span>⏸ <span data-i18n="act.block">标记阻塞（Block）</span></span>
+              <input id="input-block" data-i18n-ph="act.block.ph" placeholder="标记阻塞的原因（可选）" />
+              <button type="button" data-action="block" data-i18n="act.block.btn">Block</button>
+            </label>
+            <label class="act-card" data-tip="act.review.tip">
+              <span>👀 <span data-i18n="act.review">送审（Request Review）</span></span>
+              <input id="input-review-summary" data-i18n-ph="act.review.summary.ph" placeholder="实现概要 / 验证说明（可选）" />
+              <input id="input-review-reviewer" data-i18n-ph="act.review.reviewer.ph" placeholder="reviewer profile 名（可选）" list="assignee-list" />
+              <button type="button" data-action="request-review" data-i18n="act.review.btn">送审</button>
+            </label>
+            <label class="act-card" data-tip="act.archive.tip">
+              <span>🗄 <span data-i18n="act.archive">归档（Archive）</span></span>
+              <input id="input-archive" data-i18n-ph="act.archive.ph" placeholder="归档原因（可选）" />
+              <button type="button" data-action="archive" data-i18n="act.archive.btn">归档</button>
+            </label>
+            <label class="act-card" data-tip="act.reassign.tip">
+              <span>🔀 <span data-i18n="act.reassign">转派（Reassign）</span></span>
+              <input id="input-reassign-to" data-i18n-ph="act.reassign.to.ph" placeholder="目标 profile" list="assignee-list" />
+              <label class="inline" data-tip="act.reassign.reclaim.tip"><input id="input-reassign-reclaim" type="checkbox" /> <span data-i18n="act.reassign.reclaim">先 reclaim</span></label>
+              <input id="input-reassign-reason" data-i18n-ph="act.reassign.reason.ph" placeholder="转派原因（可选）" />
+              <button type="button" data-action="reassign" data-i18n="act.reassign.btn">转派</button>
+            </label>
+          </div>
+          <div id="action-result" class="result muted"></div>
+        </section>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 新建任务弹窗 -->
+  <dialog id="create-dialog">
+    <form method="dialog" class="modal">
+      <header><strong><span class="icon">＋</span> <span data-i18n="create.title">新建任务</span></strong><button value="close" aria-label="close">✕</button></header>
+      <div class="modal-body">
+        <p class="pane-hint muted" data-i18n="create.hint">只有标题是必填，其他字段都是可选的高级参数。等同于 <code>hermes kanban create</code>。</p>
+
+        <div class="section-label" data-i18n="create.sec.required">必填</div>
+        <label data-tip="create.board.tip"><span data-i18n="create.board">目标看板</span><select id="create-board"></select></label>
+        <label data-tip="create.title.tip"><span data-i18n="create.title.l">标题 *</span><input id="create-title" required data-i18n-ph="create.title.ph" placeholder="一句话描述任务" /></label>
+
+        <div class="section-label" data-i18n="create.sec.common">常用</div>
+        <label data-tip="create.body.tip"><span data-i18n="create.body">任务说明（Markdown）</span><textarea id="create-body" rows="6" data-i18n-ph="create.body.ph" placeholder="约束 / 产出要求 / 相关背景"></textarea></label>
+        <div class="row">
+          <label data-tip="create.assignee.tip"><span data-i18n="create.assignee">Assignee</span><input id="create-assignee" list="assignee-list" data-i18n-ph="create.assignee.ph" placeholder="留空=进 triage" /></label>
+          <label data-tip="create.priority.tip"><span data-i18n="create.priority">优先级</span><input id="create-priority" type="number" data-i18n-ph="create.priority.ph" placeholder="默认 0" /></label>
+          <label data-tip="create.initial.tip"><span data-i18n="create.initial">初始状态</span>
+            <select id="create-initial-status"><option value="" data-i18n="create.initial.auto">自动（todo）</option><option>blocked</option><option>running</option></select>
+          </label>
+        </div>
+
+        <details class="advanced">
+          <summary data-i18n="create.sec.advanced">高级参数（workspace / 依赖 / 模型覆盖 / 幂等键 等）</summary>
+          <div class="row">
+            <label data-tip="create.tenant.tip"><span>Tenant</span><input id="create-tenant" /></label>
+            <label data-tip="create.project.tip"><span>Project</span><input id="create-project" /></label>
+            <label data-tip="create.workspace.tip"><span>Workspace</span><input id="create-workspace" placeholder="scratch | worktree | dir:/path" /></label>
+            <label data-tip="create.branch.tip"><span>Branch</span><input id="create-branch" placeholder="仅 worktree 用" /></label>
+          </div>
+          <div class="row">
+            <label data-tip="create.maxrun.tip"><span>Max runtime</span><input id="create-max-runtime" placeholder="例如 30m / 2h" /></label>
+            <label data-tip="create.maxretry.tip"><span>Max retries</span><input id="create-max-retries" type="number" /></label>
+            <label data-tip="create.model.tip"><span>Model override</span><input id="create-model" /></label>
+            <label data-tip="create.provider.tip"><span>Provider override</span><input id="create-provider" /></label>
+          </div>
+          <div class="row">
+            <label data-tip="create.skills.tip"><span data-i18n="create.skills">Skills（逗号分隔）</span><input id="create-skills" placeholder="translation,github-code-review" /></label>
+            <label data-tip="create.parents.tip"><span data-i18n="create.parents">依赖父卡（逗号分隔）</span><input id="create-parents" placeholder="t_abc,t_def" /></label>
+            <label data-tip="create.idem.tip"><span data-i18n="create.idem">Idempotency key</span><input id="create-idempotency" /></label>
+          </div>
+          <div class="row">
+            <label class="inline" data-tip="create.triage.tip"><input id="create-triage" type="checkbox" /> <span data-i18n="create.triage">先进 triage</span></label>
+          </div>
+        </details>
+      </div>
+      <footer>
+        <span id="create-result" class="result muted"></span>
+        <button type="button" id="create-submit" class="primary" data-i18n="create.submit">创建任务</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Swarm 弹窗 -->
+  <dialog id="swarm-dialog">
+    <form method="dialog" class="modal">
+      <header><strong><span class="icon">⚡</span> <span data-i18n="swarm.title">新建 Swarm 工作流</span></strong><button value="close" aria-label="close">✕</button></header>
+      <div class="modal-body">
+        <p class="pane-hint muted" data-i18n="swarm.hint">Swarm 一次创建 N 个并行 worker + 1 verifier + 1 synthesizer，依赖自动串好。等同 <code>hermes kanban swarm</code>。</p>
+        <label><span data-i18n="swarm.board">目标看板</span><select id="swarm-board"></select></label>
+        <label><span data-i18n="swarm.title.l">标题 *</span><input id="swarm-title" required data-i18n-ph="swarm.title.ph" placeholder="工作流的总题目" /></label>
+        <label><span data-i18n="swarm.body">任务说明（Markdown）</span><textarea id="swarm-body" rows="6" data-i18n-ph="swarm.body.ph" placeholder="每个 worker 都会收到这段说明"></textarea></label>
+        <div class="row">
+          <label data-tip="swarm.workers.tip"><span data-i18n="swarm.workers">并行 workers</span><input id="swarm-workers" type="number" value="3" min="1" max="16" /></label>
+          <label data-tip="swarm.worker.tip"><span data-i18n="swarm.worker">Worker profile</span><input id="swarm-worker" list="assignee-list" placeholder="research" /></label>
+          <label data-tip="swarm.verifier.tip"><span data-i18n="swarm.verifier">Verifier profile</span><input id="swarm-verifier" list="assignee-list" placeholder="reviewer" /></label>
+          <label data-tip="swarm.synth.tip"><span data-i18n="swarm.synth">Synthesizer profile</span><input id="swarm-synth" list="assignee-list" placeholder="content" /></label>
+        </div>
+        <details class="advanced">
+          <summary data-i18n="create.sec.advanced">高级参数</summary>
+          <div class="row">
+            <label><span>Tenant</span><input id="swarm-tenant" /></label>
+            <label><span>Project</span><input id="swarm-project" /></label>
+          </div>
+        </details>
+      </div>
+      <footer>
+        <span id="swarm-result" class="result muted"></span>
+        <button type="button" id="swarm-submit" class="primary" data-i18n="swarm.submit">创建 Swarm</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- 帮助弹窗 -->
+  <dialog id="help-dialog">
+    <form method="dialog" class="modal">
+      <header><strong>? <span data-i18n="help.title">页面控件说明</span></strong><button value="close" aria-label="close">✕</button></header>
+      <div class="modal-body help" id="help-body"></div>
+      <footer><button value="close" class="primary" data-i18n="help.ok">好的</button></footer>
+    </form>
+  </dialog>
+
+  <!-- 自定义 Tooltip -->
+  <div id="tooltip" class="tooltip hidden" role="tooltip"></div>
+
+  <datalist id="assignee-list"></datalist>
+
+  <script src="/static/i18n.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

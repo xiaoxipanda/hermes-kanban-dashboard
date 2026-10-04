@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>@@LABEL@@</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>@@INSTALL_DIR@@/launch.sh</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key>
+    <string>@@HOME@@</string>
+    <key>PATH</key>
+    <string>@@HERMES_BIN@@/../..:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+    <key>HERMES_HOME</key>
+    <string>@@HERMES_HOME@@</string>
+    <key>HERMES_BIN</key>
+    <string>@@HERMES_BIN@@</string>
+    <key>DASHBOARD_HOST</key>
+    <string>@@DASHBOARD_HOST@@</string>
+    <key>DASHBOARD_PORT</key>
+    <string>@@DASHBOARD_PORT@@</string>
+  </dict>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>StandardOutPath</key>
+  <string>@@HERMES_HOME@@/logs/dashboard.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>@@HERMES_HOME@@/logs/dashboard.err.log</string>
+  <key>WorkingDirectory</key>
+  <string>@@INSTALL_DIR@@</string>
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+</dict>
+</plist>

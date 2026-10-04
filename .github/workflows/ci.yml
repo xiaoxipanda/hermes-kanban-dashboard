@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  python:
+    name: python syntax
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Compile all
+        run: python -m compileall -q server.py
+      - name: Boot-check imports
+        env:
+          HERMES_BIN: /bin/true
+          HERMES_HOME: ${{ runner.temp }}
+          DASHBOARD_HOST: 127.0.0.1
+          DASHBOARD_PORT: "0"
+        run: python -c "import server; print('import ok, version', server.app.version)"
+
+  javascript:
+    name: javascript syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: node --check static/*.js
+        run: |
+          node --check static/app.js
+          node --check static/i18n.js
+
+  docker:
+    name: docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t hermes-kanban-dashboard:ci .

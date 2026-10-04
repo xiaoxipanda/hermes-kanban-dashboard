@@ -1,0 +1,30 @@
+# Systemd user unit template for Hermes Kanban Dashboard.
+#
+# Install:
+#   mkdir -p ~/.config/systemd/user
+#   envsubst '$HOME $INSTALL_DIR $HERMES_HOME $HERMES_BIN' \
+#     < examples/hermes-dashboard.service.tmpl \
+#     > ~/.config/systemd/user/hermes-dashboard.service
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now hermes-dashboard.service
+#
+# where INSTALL_DIR is the absolute path to the cloned repo.
+
+[Unit]
+Description=Hermes Kanban Dashboard
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=${INSTALL_DIR}
+Environment=HERMES_HOME=${HERMES_HOME}
+Environment=HERMES_BIN=${HERMES_BIN}
+Environment=DASHBOARD_HOST=127.0.0.1
+Environment=DASHBOARD_PORT=8788
+Environment=DASHBOARD_POLL=2.0
+ExecStart=${INSTALL_DIR}/launch.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

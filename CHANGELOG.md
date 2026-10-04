@@ -1,0 +1,86 @@
+# Changelog
+
+All notable changes to this project are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- (track upcoming changes here)
+
+## [0.4.0] - 2026-10-04
+
+Open-source preview release.
+
+### Added
+- `LICENSE` (MIT), `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`.
+- `.gitignore`, `.env.example`, `requirements.txt`.
+- `install.sh` that detects a usable `python3`, creates `.venv`, installs
+  dependencies, and renders `examples/com.hermes-dashboard.plist.tmpl` into a
+  user-scoped launchd agent (`~/Library/LaunchAgents/`) with current user,
+  paths, and env values substituted.
+- `Dockerfile` + `docker-compose.yml` for container deployment (mounts a
+  Hermes home read-only by default).
+- GitHub Actions CI: Python syntax check (`compileall`), Node-based JS syntax
+  check (`node --check`), HTML/JSON validation on PRs.
+- Issue templates (`bug_report.md`, `feature_request.md`) and
+  `PULL_REQUEST_TEMPLATE.md`.
+- Bilingual `README.md` (zh + en) with environment variable table, API table,
+  install matrix, screenshots section, and badges.
+- `docs/DEPLOY.md` with Tailscale / reverse proxy / Docker guides.
+
+### Changed
+- `launch.sh` no longer assumes a fixed `python-3.14.7` interpreter: it probes
+  `.venv/bin/python`, falls back to `python3` on `PATH`, and prints clear
+  errors if neither is usable.
+- `com.ethan.hermes-dashboard.plist` moved to
+  `examples/com.hermes-dashboard.plist.tmpl` with `${USER}` / `${INSTALL_DIR}`
+  / `${HERMES_HOME}` / `${HERMES_BIN}` placeholders.
+- `server.py` version bump to `0.4.0`.
+
+### Removed
+- Host-specific hard-coded paths (`/Users/ethan/...`) from distributed files;
+  they now live only in the user's rendered agent file after `install.sh`.
+
+## [0.3.0] - 2026-10-04
+
+### Added
+- Visual facelift: Aurora gradient background, glassmorphism top bar, flash
+  animation on status transitions.
+- Light / dark theme toggle persisted in `localStorage`.
+- English / Chinese UI toggle (`window.I18N`), including help overlay.
+- Custom tooltip (`data-tip`) on 22+ controls explaining the underlying
+  `hermes kanban` CLI command.
+- Relative-time rendering with absolute-time tooltip.
+
+### Fixed
+- Unix epoch second / millisecond auto-detection in `fmt()`; previously some
+  cards showed 1970 timestamps.
+
+## [0.2.0] - 2026-10-04
+
+### Added
+- Full `hermes kanban create` form (15+ fields) and `hermes kanban swarm`
+  wizard in the top bar.
+- Dynamic board / assignee discovery via `hermes kanban boards list --json` /
+  `hermes kanban assignees --json`; nothing hard-coded.
+- Env-driven config: `HERMES_BIN`, `HERMES_HOME`, `DASHBOARD_HOST`,
+  `DASHBOARD_PORT`, `DASHBOARD_TOKEN`, `DASHBOARD_POLL`.
+- Optional bearer-token auth on every `/api/*` endpoint.
+- Drawer tabs: Overview (Markdown body), Comments, Lifecycle events, Task
+  log tail (`~/.hermes/kanban/logs/<id>.log`), Actions.
+- Write actions: `block` (new), `unblock`, `request-review` (with
+  `--reviewer`), `archive`, `reassign` with `--reclaim`.
+- Top-bar search + status + assignee filters + archived toggle.
+
+## [0.1.0] - 2026-10-04
+
+Initial internal release.
+
+### Added
+- FastAPI + SSE backend, single-page vanilla JS frontend.
+- Read-only view of all live boards, 2-second SSE snapshot diffing.
+- Comment / unblock / request-review / archive / reassign write operations
+  via `hermes kanban` subprocess (no direct SQLite access).
+- launchd user-agent plist for macOS auto-start.

@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  dashboard:
+    build: .
+    image: hermes-kanban-dashboard:local
+    container_name: hermes-kanban-dashboard
+    ports:
+      - "127.0.0.1:8788:8788"
+    environment:
+      # Point at the hermes install mounted below.
+      HERMES_BIN: /opt/hermes/bin/hermes
+      HERMES_HOME: /var/lib/hermes
+      DASHBOARD_HOST: 0.0.0.0
+      DASHBOARD_PORT: "8788"
+      DASHBOARD_POLL: "2.0"
+      # DASHBOARD_TOKEN: change-me-please
+    volumes:
+      # Read-only hermes binary + runtime data from the host.
+      - /opt/hermes:/opt/hermes:ro
+      - ${HERMES_HOME:-${HOME}/.hermes}:/var/lib/hermes
+    restart: unless-stopped
