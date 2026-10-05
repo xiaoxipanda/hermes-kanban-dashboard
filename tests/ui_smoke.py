@@ -130,6 +130,7 @@ def fixture_write(args, **kwargs):
 def run():
     server._hermes_json = fixture_cli
     server._run_hermes = fixture_write
+    server._auto_decompose = lambda: False
     server.POLL_SECONDS = 0.15
     server.TOKEN = None
     server.GATEWAY_LOG = Path("/nonexistent/hermes-fixture.log")
@@ -269,6 +270,12 @@ def run():
             page.locator("#new-task-btn").click()
             expect(page.locator("#create-board")).to_have_value("board-14")
             page.locator("#create-title").fill("Fixture-only create")
+            expect(page.locator("#create-triage")).to_be_disabled()
+            expect(page.locator("#create-routing-hint")).to_contain_text("Automatic decomposition is off")
+            page.locator("#create-submit").click()
+            expect(page.locator("#create-dialog")).to_be_visible()
+            assert not WRITES
+            page.locator("#create-assignee").fill("dev")
             page.locator("#create-submit").dblclick()
             expect(page.locator("#drawer-title")).to_have_text("Fixture-only create")
             assert len(WRITES) == 1, WRITES

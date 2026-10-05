@@ -4,6 +4,7 @@ const STATUS_ORDER = ["running", "ready", "review", "blocked", "todo", "schedule
 const STATE = {
   boards: [],
   assignees: [],
+  autoDecompose: null,
   tasks: Object.create(null),
   prevStatus: Object.create(null),
   open: null,
@@ -48,6 +49,7 @@ function applyI18n() {
       STATE.assignees.map((a) => `<option value="${esc(a.name)}">${esc(a.name)}</option>`).join("");
     fa.value = cur;
   }
+  updateCreateRouting();
 }
 function toggleLang() {
   STATE.lang = STATE.lang === "zh" ? "en" : "zh";
@@ -265,6 +267,16 @@ async function postAction(action) {
 }
 
 // ── create / swarm ───────────────────────────────────────────────────────────
+function updateCreateRouting() {
+  const automatic = STATE.autoDecompose === true;
+  $("#create-assignee").required = !automatic;
+  $("#create-assignee").placeholder = t(automatic ? "create.assignee.ph" : "create.assignee.required");
+  $("#create-triage").disabled = !automatic;
+  if (!automatic) $("#create-triage").checked = false;
+  $("#create-routing-hint").textContent = t(automatic ? "create.routing.auto" :
+    STATE.autoDecompose === false ? "create.routing.manual" : "create.routing.unknown");
+}
+
 function collectCreatePayload() {
   const num = (id) => { const v = $(id).value.trim(); return v === "" ? null : Number(v); };
   const list = (id) => { const v = $(id).value.trim(); return v ? v.split(",").map(s => s.trim()).filter(Boolean) : null; };
@@ -285,6 +297,11 @@ async function submitCreate() {
   const board = $("#create-board").value;
   const payload = collectCreatePayload();
   if (!payload.title) { $("#create-result").className = "result err"; $("#create-result").textContent = STATE.lang === "zh" ? "title 必填" : "title required"; return; }
+  if (STATE.autoDecompose !== true && (!payload.assignee || payload.triage)) {
+    $("#create-result").className = "result err";
+    $("#create-result").textContent = t("create.routing.manual");
+    return;
+  }
   $("#create-result").className = "result muted"; $("#create-result").textContent = STATE.lang === "zh" ? "创建中…" : "creating…";
   submitCreate.busy = true; $("#create-submit").disabled = true;
   try {
@@ -294,8 +311,9 @@ async function submitCreate() {
     const newId = data.task?.id; if (newId) openDrawer(board, newId);
     $("#create-dialog").close();
     $("#create-dialog form").reset();
+    updateCreateRouting();
     $("#create-result").textContent = "";
-    notify(t("workspace.createdSuccess"));
+    notify(`${t("workspace.createdSuccess")}${data.task?.status ? " · " + statusLabel(data.task.status) : ""}`);
   } catch (e) { $("#create-result").className = "result err"; $("#create-result").textContent = `${STATE.lang === "zh" ? "失败" : "failed"}: ${JSON.stringify(e)}`; }
   finally { submitCreate.busy = false; $("#create-submit").disabled = false; }
 }
@@ -362,7 +380,7 @@ function wire() {
   $("#filter-status").addEventListener("change", () => filtersChanged());
   $("#filter-assignee").addEventListener("change", () => filtersChanged());
   $("#toggle-archived").addEventListener("change", () => filtersChanged(true));
-  $("#new-task-btn").addEventListener("click", () => { if (boardInfo(VIEW.board) && !boardInfo(VIEW.board).archived) $("#create-board").value = VIEW.board; $("#create-dialog").showModal(); $("#create-title").focus(); });
+  $("#new-task-btn").addEventListener("click", () => { if (boardInfo(VIEW.board) && !boardInfo(VIEW.board).archived) $("#create-board").value = VIEW.board; updateCreateRouting(); $("#create-dialog").showModal(); $("#create-title").focus(); });
   $("#new-swarm-btn").addEventListener("click", () => { prepareSwarmForm(); if (boardInfo(VIEW.board) && !boardInfo(VIEW.board).archived) $("#swarm-board").value = VIEW.board; $("#swarm-dialog").showModal(); $("#swarm-title").focus(); });
   $("#help-btn").addEventListener("click", () => $("#help-dialog").showModal());
   $("#lang-btn").addEventListener("click", toggleLang);

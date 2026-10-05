@@ -43,6 +43,9 @@ host that already has Hermes installed.
   (with `--reviewer`), `archive`, `reassign` (with `--reclaim`), plus a
   board-creation form and dedicated forms for `kanban create` (15+ fields) and `kanban swarm`
   (parallel workers + verifier + synthesizer).
+- **Configuration-aware task routing.** The form reads `kanban.auto_decompose`.
+  When it is off or unavailable, an assignee is required and triage is disabled.
+  The API checks the current setting again before creating a task.
 - **SSE live stream.** Every 2 s (`DASHBOARD_POLL`) the server diffs selected
   board snapshots. Overview fetches summaries only; the optional activity
   panel enables a live tail of `~/.hermes/logs/gateway.log`.
@@ -94,7 +97,7 @@ All settings are environment variables; see [`.env.example`](.env.example):
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/healthz` | liveness, no auth required |
-| `GET` | `/api/config` | boards + assignees + poll config |
+| `GET` | `/api/config` | boards + assignees + poll config + auto_decompose (boolean or null) |
 | `GET` | `/api/boards` | board catalog, including archived boards |
 | `POST` | `/api/boards` | create a native board and its isolated task store |
 | `GET` | `/api/assignees` | assignee list |
@@ -176,6 +179,8 @@ MIT — see [LICENSE](LICENSE).
 - **全套写操作**:`comment` / `block` / `unblock` / `request-review` /
   `archive` / `reassign`,外加"新建看板"、"新建任务"(15+ 参数) 和"新建协作任务"
   (逐项分工 → 审核 → 汇总，含流程预览和进度追踪)弹窗。
+- **按当前设置分派**:读取 `kanban.auto_decompose`；关闭或无法读取时，
+  必须选择执行者且禁用 triage。后端在创建前重新校验，避免任务无人推进。
 - **SSE 实时流**:每 2s (`DASHBOARD_POLL`) 更新当前选中的看板，
   总览只加载摘要；展开活动面板后才订阅 Gateway 日志。
 - **外观与多语**:中性色深浅主题、中英双语、窄屏侧栏、统一图标、

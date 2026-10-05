@@ -98,6 +98,26 @@ def _ensure_board(board: str) -> None:
         raise HTTPException(404, f"unknown board {board}")
 
 
+def _auto_decompose() -> bool | None:
+    """Read only this scalar through Hermes, including its native defaults.
+
+    Older CLI versions and unavailable configuration must not silently enable
+    triage. Assigned tasks remain usable when this optional read fails.
+    """
+    try:
+        result = subprocess.run(
+            [HERMES_BIN, "config", "get", "kanban.auto_decompose"],
+            capture_output=True, text=True, timeout=8,
+            env={**os.environ, "HERMES_HOME": str(HERMES_HOME)},
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    value = result.stdout.strip().lower()
+    if result.returncode == 0 and value in ("true", "false"):
+        return value == "true"
+    return None
+
+
 # ─── read endpoints ────────────────────────────────────────────────────────────
 
 
@@ -130,6 +150,7 @@ def api_config() -> dict:
         "assignees": _hermes_json(["assignees", "--json"]),
         "poll_seconds": POLL_SECONDS,
         "has_task_logs": TASK_LOG_DIR.is_dir(),
+        "auto_decompose": _auto_decompose(),
     }
 
 
@@ -354,11 +375,23 @@ def act_reassign(board: str, task_id: str, payload: ReassignPayload) -> dict:
 @app.post("/api/boards/{board}/create", dependencies=[Depends(require_token)])
 def act_create(board: str, payload: CreatePayload) -> dict:
     _ensure_board(board)
+    if next(b for b in _list_boards() if b["slug"] == board).get("archived"):
+        raise HTTPException(400, "Cannot create in an archived board")
+    auto_decompose = _auto_decompose()
+    assignee = (payload.assignee or "").strip()
+    if auto_decompose is not True and (payload.triage or not assignee):
+        raise HTTPException(422, "Automatic triage is disabled or unavailable. Choose an assignee.")
+    if assignee:
+        profiles = {a["name"] for a in _hermes_json(["assignees", "--json"]) if a.get("on_disk", True)}
+        if assignee not in profiles:
+            raise HTTPException(422, "Choose an available assignee.")
+    if not payload.title.strip():
+        raise HTTPException(422, "Title is required.")
     args: list[str] = ["--board", board, "create", "--json"]
     if payload.body is not None:
         args.extend(["--body-file", "-"])
-    if payload.assignee:
-        args.extend(["--assignee", payload.assignee])
+    if assignee:
+        args.extend(["--assignee", assignee])
     if payload.priority is not None:
         args.extend(["--priority", str(payload.priority)])
     if payload.tenant:
@@ -387,7 +420,7 @@ def act_create(board: str, payload: CreatePayload) -> dict:
         args.extend(["--initial-status", payload.initial_status])
     if payload.idempotency_key:
         args.extend(["--idempotency-key", payload.idempotency_key])
-    args.append(payload.title)
+    args.extend(["--", payload.title.strip()])
     rc, out, err = _run_hermes(args, stdin_data=payload.body)
     if rc != 0:
         raise HTTPException(400, detail={"cmd": args, "rc": rc, "stderr": err[-800:]})
