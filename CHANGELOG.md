@@ -19,6 +19,9 @@ All notable changes to this project are documented here. The format follows
 - Isolated native CLI integration coverage for dependencies and idempotency.
 
 ### Fixed
+- Read Hermes automatic-decomposition settings in the task form and validate
+  them again in the API. Require an available assignee when automatic triage
+  is off or unknown; reject task creation in archived boards.
 - Use native Swarm flags (`--worker`, `--verifier`, `--synthesizer`, `--json`)
   and an idempotency key; send the complete brief to every task.
 - Do not treat an immediately completed Swarm root as a completed collaboration.

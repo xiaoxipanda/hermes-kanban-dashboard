@@ -162,6 +162,7 @@ function updateBoardMetadata(boards) {
 async function loadConfig() {
   const cfg = await api("/api/config");
   STATE.assignees = cfg.assignees || [];
+  STATE.autoDecompose = typeof cfg.auto_decompose === "boolean" ? cfg.auto_decompose : null;
   renderAssigneeList();
   updateBoardMetadata(cfg.boards);
   applyI18n();

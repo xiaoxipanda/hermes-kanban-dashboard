@@ -197,7 +197,7 @@
     <form method="dialog" class="modal">
       <header><strong><span class="icon">＋</span> <span data-i18n="create.title">新建任务</span></strong><button value="close" aria-label="close">✕</button></header>
       <div class="modal-body">
-        <p class="pane-hint muted" data-i18n="create.hint">只有标题是必填，其他字段都是可选的高级参数。等同于 <code>hermes kanban create</code>。</p>
+        <p class="pane-hint muted" id="create-routing-hint" role="status">读取分派设置中，请指定执行者。</p>
 
         <div class="section-label" data-i18n="create.sec.required">必填</div>
         <label data-tip="create.board.tip"><span data-i18n="create.board">目标看板</span><select id="create-board"></select></label>
@@ -206,7 +206,7 @@
         <div class="section-label" data-i18n="create.sec.common">常用</div>
         <label data-tip="create.body.tip"><span data-i18n="create.body">任务说明（Markdown）</span><textarea id="create-body" rows="6" data-i18n-ph="create.body.ph" placeholder="约束 / 产出要求 / 相关背景"></textarea></label>
         <div class="row">
-          <label data-tip="create.assignee.tip"><span data-i18n="create.assignee">Assignee</span><input id="create-assignee" list="assignee-list" data-i18n-ph="create.assignee.ph" placeholder="留空=进 triage" /></label>
+          <label data-tip="create.assignee.tip"><span data-i18n="create.assignee">Assignee</span><input id="create-assignee" list="assignee-list" required placeholder="请选择执行者" aria-describedby="create-routing-hint" /></label>
           <label data-tip="create.priority.tip"><span data-i18n="create.priority">优先级</span><input id="create-priority" type="number" data-i18n-ph="create.priority.ph" placeholder="默认 0" /></label>
           <label data-tip="create.initial.tip"><span data-i18n="create.initial">初始状态</span>
             <select id="create-initial-status"><option value="" data-i18n="create.initial.auto">自动（todo）</option><option>blocked</option><option>running</option></select>
@@ -233,7 +233,7 @@
             <label data-tip="create.idem.tip"><span data-i18n="create.idem">Idempotency key</span><input id="create-idempotency" /></label>
           </div>
           <div class="row">
-            <label class="inline" data-tip="create.triage.tip"><input id="create-triage" type="checkbox" /> <span data-i18n="create.triage">先进 triage</span></label>
+            <label class="inline" data-tip="create.triage.tip"><input id="create-triage" type="checkbox" disabled /> <span data-i18n="create.triage">进入 triage（需开启自动拆解）</span></label>
           </div>
         </details>
       </div>
